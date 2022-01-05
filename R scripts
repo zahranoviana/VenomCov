@@ -1,0 +1,663 @@
+# Metadata analysis of Sars-cov2 data (belonged to BRIN) within the area of Jakarta, Tangerang, and Bogor (202 genomes)
+
+
+```{r Load the data}
+
+# Load the metadata
+gisaid202S_DF <- read.csv(file = 'Gisaid_LIPI2022_202_Jabota_metadata.csv', header = TRUE, fill = TRUE)
+
+# Check the data dimension
+dim(gisaid202S_DF) 
+
+# Check the head rows 
+head(gisaid202S_DF)
+
+# Replace "." in column names to underscore
+library(stringr)
+colnames(gisaid202S_DF) <- str_replace_all(colnames(gisaid202S_DF), "[:punct:]", "_")
+
+# Check if its working
+colnames(gisaid202S_DF) 
+
+# Create a copy of the dataframe to be modified
+gisaid202S_DF2 <- gisaid202S_DF
+
+# Save the file
+save(gisaid202S_DF2, file = "gisaid202S_DF2.Rdata")
+
+```
+
+```{r Change the column type of the collection date}
+
+# Load the data
+load("gisaid202S_DF2.Rdata")
+
+# Data summary
+summary(gisaid202S_DF2)
+
+# Create a new column where the collection date is recorded as "date"
+# First create a new column
+gisaid202S_DF2$Collection_date2 <- gisaid202S_DF2$Collection_date
+
+# Change the data type on the column "Collection_date2" to "date"
+library(dplyr)
+gisaid202S_DF3 <- gisaid202S_DF2 %>%
+                       group_by(Virus_name) %>%
+                       mutate(Collection_date2=as.Date(Collection_date2, format = "%m/%d/%Y"))
+
+# Check if its working 
+summary(gisaid202S_DF3)
+
+# Save the file
+save(gisaid202S_DF3, file = "gisaid202S_DF3.Rdata")
+
+```
+
+
+```{r Check the detail in some specific columns}
+
+# Load the data
+load("gisaid202S_DF3.Rdata")
+
+# Check all column name
+colnames(gisaid202S_DF3)
+
+# Virus name
+unique(gisaid202S_DF3$Virus_name) # 203 --> 202 genomes + 1 reference strain
+
+# Accession ID
+unique(gisaid202S_DF3$Accession_ID) # 203 genomes
+
+# Host
+unique(gisaid202S_DF3$Host) # all human
+
+# Gender
+unique(gisaid202S_DF3$Gender) # 1 unknown belonged to the reference genome
+
+# Patient_age
+unique(gisaid202S_DF3$Patient_age)
+
+# Patient_status
+unique(gisaid202S_DF3$Patient_status)
+
+# Lineage
+unique(gisaid202S_DF3$Lineage) # 19 lineages
+
+# Collection_date2
+unique(gisaid202S_DF3$Collection_date2) 
+
+```
+
+```{r Change location column}
+
+# Location
+unique(gisaid202S_DF3$Location) # "Asia / Indonesia / West Java / Bogor" and "Asia / Indonesia / Jawa Barat / Bogor" belong to the same region
+
+# Only take the last string for location
+# First create a column
+gisaid202S_DF3$Location2 <- gisaid202S_DF3$Location
+
+# Take only the last string in the new column
+library("stringi")
+gisaid202S_DF3$Location2 <- stri_extract_last_words(gisaid202S_DF3$Location2)
+
+# 2 genomes location has been changed to "Selatan". As it belonged to "Tangerang Selatan" and only consisted of 2 data, merge it with "Tangerang"
+gisaid202S_DF3$Location2 <- gsub('Selatan', 'Tangerang', gisaid202S_DF3$Location2)
+
+# Check if it is working
+unique(gisaid202S_DF3$Location2)
+
+```
+
+```{r Categorize the patient age}
+
+# Patient age
+unique(gisaid202S_DF3$Patient_age)
+
+# Change the date type to numeric
+gisaid202S_DF3$Patient_age2 <- as.numeric(as.character(gisaid202S_DF3$Patient_age))
+
+# Check if it is working 
+unique(gisaid202S_DF3$Patient_age2)
+
+# How many unknown?
+test <- subset(gisaid202S_DF3, Patient_age == "unknown") # 2 patient with an unknown age, one belonged to the reference genome --> do not remove
+
+# Add a new column to categorize the age group
+gisaid202S_DF3$Age_group <- gisaid202S_DF3$Patient_age2
+
+# Categorize the age group
+library(dplyr)
+gisaid202S_DF3 <- gisaid202S_DF3 %>% mutate(Age_group = case_when(Age_group >= 65 ~ 'Senior_citizen',
+                                             Age_group >= 35  & Age_group <= 64 ~ 'Adult',
+                                             Age_group >= 20  & Age_group <= 34 ~ 'Young_adult',
+                                             Age_group >= 13  & Age_group <= 19 ~ 'Teenager',
+                                             Age_group >= 4  & Age_group <= 12 ~ 'Children',
+                                             Age_group <= 3 ~ 'Baby')) # end function
+
+# Check if it is working
+unique(gisaid202S_DF3$Age_group)
+
+# To save, create a new name
+gisaid202S_DF4 <- gisaid202S_DF3
+
+# Save the file 
+save(gisaid202S_DF4, file = "gisaid202S_DF4.Rdata")
+
+```
+
+
+```{r Checkpoint and save}
+
+# For majority of the plot, we need no reference genome and hence the removal from metadata
+gisaid202S_DF5 <- subset(gisaid202S_DF4, Virus_name != "hCoV-19/Wuhan/Hu-1/2019")
+
+# Check if it is working
+length(unique(gisaid202S_DF5$Virus_name)) # should be only 202
+
+# Save the file
+save(gisaid202S_DF5, file = "gisaid202S_DF5.Rdata")
+
+
+```
+
+
+# Plot no.1 (2A in the manuscript) - Geographic distribution vs gender
+
+```{r Construct plot - Geographic distribution_gender}
+
+# Load the data
+load("gisaid202S_DF5.Rdata")
+
+# Add a new column and put 1 for each column (mandatory to construct a bar plot)
+gisaid202S_DF5$value <- 1
+
+# Check the location
+sort(unique(gisaid202S_DF5$Location2)) # Bogor, Jakarta, Tangerang
+
+# Check the gender
+sort(unique(gisaid202S_DF5$Gender)) # Female, Male
+
+# Reorder the factor of gender
+gisaid202S_DF5$Gender <- factor(gisaid202S_DF5$Gender, c("Male","Female"))
+
+# Check if it is working
+sort(unique(gisaid202S_DF5$Gender)) # Male, Female
+
+# Construct the plot
+library(ggplot2)
+p_1 <- ggplot(gisaid202S_DF5, aes(x=reorder(Location2,-value,sum), y=value, fill = Gender, 
+                                !is.na(Gender))) + 
+        geom_bar(stat='identity') +
+        labs(y="Number of cases", x = "City") +
+        scale_fill_manual(values = c("#0000FF", "#FF0000", "#666262")) +
+        theme(legend.position = "bottom",
+              legend.title=element_text(size=17), 
+              legend.text=element_text(size=17),
+              strip.text.x = element_blank(),
+              axis.text.x = element_text(size=17, hjust=1),
+              axis.text.y = element_text(size=17),
+              text = element_text(size=17)) 
+  
+  
+```
+p_1
+
+
+
+# Plot no.2 (2B in the manuscript) - Age distribution for each gender
+
+```{r Age distribution for each gender - Data preparation}
+
+# First load the data
+load("gisaid202S_DF5.Rdata")
+
+# Only retrieve age_group column and gender
+gisaid202S_DF5_2 <- gisaid202S_DF5[,c(21,8)]
+
+# Add a new column and put 1 for each column (mandatory to construct a bar plot)
+gisaid202S_DF5_2$Number_of_cases <- 1
+
+# Create a new column (combination of gender and age group)
+gisaid202S_DF5_2$gender_age <- paste(gisaid202S_DF5_2$Gender, gisaid202S_DF5_2$Age_group, sep = "_")
+
+# Agglomerate the same value in the gender_age column
+library(dplyr)
+gisaid202S_DF5_2b <- 
+gisaid202S_DF5_2 %>% 
+  dplyr::group_by(gender_age) %>% 
+  dplyr::summarise(value = sum(Number_of_cases))
+
+# Integrate the data with the other (required) metadata
+# First take the column of gender, age_group, and gender_age from the previous table
+to_filter <- gisaid202S_DF5_2[,c(1,2,4)]
+
+# Remove duplicated values
+to_filter2 <- to_filter[!duplicated(to_filter), ] 
+
+# Merge the previous and the recent data
+gisaid202S_DF5_2c <- merge(gisaid202S_DF5_2b, to_filter2, by.ID = "gender_age")
+
+# Check if it is working
+unique(gisaid202S_DF5_2c$Age_group)
+
+# Change the NA in the age_group column to "Unknown"
+gisaid202S_DF5_2c[is.na(gisaid202S_DF5_2c)] <- "Unknown"
+
+# Check if it is working
+unique(gisaid202S_DF5_2c$Age_group)
+
+# Reorder the data based on age_group --> order from the most to the least abundant
+gisaid202S_DF5_2c$Age_group <- reorder(gisaid202S_DF5_2c$Age_group, gisaid202S_DF5_2c$value)
+gisaid202S_DF5_2c$Age_group <- factor(gisaid202S_DF5_2c$Age_group, levels=rev(levels(gisaid202S_DF5_2c$Age_group)))
+
+# Check if it is working
+levels(gisaid202S_DF5_2c$Age_group)
+
+# Reorder the factor for gender
+gisaid202S_DF5_2c$Gender <- factor(gisaid202S_DF5_2c$Gender, c("Male", "Female"))
+
+```
+
+
+```{r Visualization}
+
+# Construct the plot
+library("ggplot2")
+p_2 <- ggplot(gisaid202S_DF5_2c, aes(x=Gender, y=value, fill = Age_group)) + 
+        geom_bar(stat='identity', position = 'fill') +
+        labs(y = "Percentage of cases", x = "", fill = "Age group") +
+        theme(legend.position = "right",
+              legend.title=element_text(size=16), 
+              legend.text=element_text(size=14),
+              strip.text.x = element_blank(),
+              axis.title.y = element_text(size=16),
+              axis.text.x = element_text(size=16),
+              axis.text.y = element_text(size=16)) +
+        guides(fill=guide_legend(nrow = 7)) +
+        scale_fill_manual(values = c("#FF0000","#00CD00", "#FF8C00", "#0000FF", "#EE00EE", "#A6A6A6",
+                                     "#008B8B", "#999999"))
+
+```
+p_2
+
+
+
+
+# Plot no.3 (2C in the manuscript) - Lineage distribution for each gender 
+
+```{r Lineages distribution for each gender - Data preparation}
+
+# First load the data
+load("gisaid202S_DF5.Rdata")
+
+# Only retrieve the lineage and gender column from the table
+gisaid202S_DF5_3 <- gisaid202S_DF5[,c(15,8)]
+
+# Add a new column and put 1 for each column (mandatory to construct a bar plot)
+gisaid202S_DF5_3$Number_of_cases <- 1
+
+# Create a new column (combination of lineage and gender)
+gisaid202S_DF5_3$lineage_gender <- paste(gisaid202S_DF5_3$Lineage, gisaid202S_DF5_3$Gender, sep = "_")
+
+# Agglomerate the same value in the lineage_gender column
+gisaid202S_DF5_3b <- 
+gisaid202S_DF5_3 %>% 
+  dplyr::group_by(lineage_gender) %>% 
+  dplyr::summarise(value = sum(Number_of_cases))
+
+# Integrate the data with the other (required) metadata
+# First take the column of lineage, gender, and lineage_gender from the previous table
+to_filter_x <- gisaid202S_DF5_3[,c(1,2,4)]
+
+# Remove duplicated values
+to_filter_x2 <- to_filter_x[!duplicated(to_filter_x), ] 
+
+# Merge the previous and the recent data
+gisaid202S_DF5_3c <- merge(gisaid202S_DF5_3b, to_filter_x2, by.ID = "lineage_gender")
+
+# Check if it is working
+unique(gisaid202S_DF5_3c$lineage_gender)
+sum(gisaid202S_DF5_3c$value) #202
+
+# Reorder the data based on Lineage --> order from the most to the least abundant
+gisaid202S_DF5_3c$Lineage <- reorder(gisaid202S_DF5_3c$Lineage, gisaid202S_DF5_3c$value)
+gisaid202S_DF5_3c$Lineage <- factor(gisaid202S_DF5_3c$Lineage, levels=rev(levels(gisaid202S_DF5_3c$Lineage)))
+
+# Check if it is working
+levels(gisaid202S_DF5_3c$Lineage)
+
+# Reorder the factor for gender
+gisaid202S_DF5_3c$Gender <- factor(gisaid202S_DF5_3c$Gender, c("Male", "Female"))
+
+
+
+
+```
+
+
+```{r Visualization}
+
+# Construct the plot
+library("ggplot2")
+
+p_3 <- ggplot(gisaid202S_DF5_3c, aes(x=reorder(Gender,-value,sum), y=value, fill = Lineage)) + 
+        geom_bar(stat='identity', position="fill") +
+        labs(y="Percentage of cases", x = "", fill = "Lineages") +
+        theme(legend.position = "right",
+              legend.title=element_text(size=12), 
+              legend.text=element_text(size=14),
+              strip.text.x = element_blank(),
+              axis.text.x = element_text(size=12),
+              axis.text.y = element_text(size=12),
+              text = element_text(size=14)) +
+        guides(fill=guide_legend(nrow = 20)) +
+        scale_fill_manual(values = c("#AAAAFF", "#5555FF", "#0000FF", "#0000AA", "#000055",
+                                              "#FFAAAA", "#FF5555", "#FF0000", "#AA0000", "#550000",
+                                              "#AAFFAA", "#55FF55", "#00FF00", "#00AA00", "#005500",
+                                              "#C6CDB9", "#8D9C74", "#556B2F", "#38471F", "#1C230F",
+                                              "#FFE1AA", "#FFC355", "#FFA500", "#AA6E00", "#553700",
+                                              "#DFB4FA", "#BF6AF5", "#A020F0", "#6A15A0", "#350A50",
+                                              "#AAE9FF", "#55D4FF", "#00BFFF", "#007FAA", "#003F55",
+                                              "#FFFFAA", "#FFFF55", "#FFFF00", "#AAAA00", "#555500",
+                                              "#FFC1AA", "#FF8355", "#FF4500", "#AA2E00", "#551700",
+                                              "#FFCDE6", "#FF9BCD", "#FF69B4", "#AA4678", "#55233C",
+                                              "#E4EBF4", "#CAD7E9", "#B0C4DE", "#758294", "#3A414A",
+                                              "#BFF4EF", "#7FEADF", "#40E0D0", "#2A958A", "#154A45",
+                                              "#F9E6E6", "#F3CDCD", "#EEB4B4", "#9E7878", "#4F3C3C",
+                                              "#F2E1B4", "#E6C36A", "#DAA520", "#916E15", "#48370A",
+                                              "#F9D5F9", "#F3ABF3", "#EE82EE", "#9E569E", "#4F2B4F"), na.value = "#4F4F4F") 
+
+```
+p_3
+
+
+
+# Plot no.4 (Figure 3A in the manuscript) - Temporal lineage distribution 
+
+```{r Lineage distribution dataset}
+
+# First load the data
+load("gisaid202S_DF5.Rdata")
+
+# Check the data
+summary(gisaid202S_DF5) # Collection_date2 - Min 2020-05-20 - Max 2021-08-04
+
+# Only retrieve the lineage and collection_date2 column from the table
+gisaid202S_DF5_4 <- gisaid202S_DF5[,c(15,18)]
+
+# Create a new column (combination of lineage and collection_date2)
+gisaid202S_DF5_4$lineage_date <- paste(gisaid202S_DF5_4$Lineage, gisaid202S_DF5_4$Collection_date2, sep = "_")
+
+# Add a new column and put 1 for each column (mandatory to construct a bar plot)
+gisaid202S_DF5_4$Number_of_cases <- 1
+
+# Agglomerate the same value in the lineage_date column
+gisaid202S_DF5_4b <- 
+gisaid202S_DF5_4 %>% 
+  dplyr::group_by(lineage_date) %>% 
+  dplyr::summarise(value = sum(Number_of_cases))
+
+# Integrate the data with the other (required) metadata
+# First take the column of lineage, gender, and lineage_gender from the previous table
+to_filter_y <- gisaid202S_DF5_4[,c(1,2,3)]
+
+# Remove duplicated values
+to_filter_y2 <- to_filter_y[!duplicated(to_filter_y), ] 
+
+# Merge the previous and the recent data
+gisaid202S_DF5_4c <- merge(gisaid202S_DF5_4b, to_filter_y2, by.ID = "lineage_date")
+
+# Check if it is working
+unique(gisaid202S_DF5_4c$lineage_date)
+
+# Reorder the data based on Lineage --> order from the most to the least abundant
+gisaid202S_DF5_4c$Lineage <- reorder(gisaid202S_DF5_4c$Lineage, gisaid202S_DF5_4c$value)
+gisaid202S_DF5_4c$Lineage <- factor(gisaid202S_DF5_4c$Lineage, levels=rev(levels(gisaid202S_DF5_4c$Lineage)))
+
+# Check if it is working
+levels(gisaid202S_DF5_4c$Lineage)
+
+# Rename column name "value" to "number of lineage case"
+# colnames(gisaid202S_DF5_4c)[2] <- "Number_of_lineage_case"
+
+# Add a new column data type 
+# gisaid202S_DF5_4c$data_type <- "cases_per_lineage"
+
+# Replace date as character
+gisaid202S_DF5_4c$Collection_date2_2 <- as.character(gisaid202S_DF5_4c$Collection_date2)
+
+# Only retrieve year and month for the date
+gisaid202S_DF5_4c$Collection_date2_2 <- gsub('.{3}$', '', gisaid202S_DF5_4c$Collection_date2_2)
+
+# Remove lineage_date column
+gisaid202S_DF5_4d <- gisaid202S_DF5_4c[,c(5,3,2)]
+
+# Agglomerate the same value for date, data_type and details column
+gisaid202S_DF5_4e <- 
+gisaid202S_DF5_4d %>% 
+  dplyr::group_by(Collection_date2_2, Lineage) %>% 
+  dplyr::summarise(value = sum(value))
+
+# Check the output
+sum(gisaid202S_DF5_4e$value) # 202
+
+# Rename column name "Collection_date2_2" to "date"
+colnames(gisaid202S_DF5_4e)[1] <- "date"
+
+# Rename column name "value" to "Number_of_cases"
+colnames(gisaid202S_DF5_4e)[3] <- "Number_of_cases"
+
+```
+
+```{r Visualization}
+
+# We remove 1 genome which the lineage is unknown
+gisaid202S_DF5_4f <- subset(gisaid202S_DF5_4e, Lineage != "None")
+
+# Now we visualize the data
+library(ggplot2)
+p_4 <- ggplot(gisaid202S_DF5_4f, aes(x= date, y = Number_of_cases, colour = Lineage, group = Lineage)) +   geom_point() + 
+        geom_line(size = 1.5, linetype = 6, position=position_dodge(width=0)) + 
+        labs(y="Number of cases", x = "", fill = "Lineages") +
+        scale_color_manual(values = c("#AAAAFF", "#0000FF", "#0000AA", 
+                                              "#FFAAAA", "#FF0000", "#AA0000", 
+                                              "#AAFFAA", "#00FF00", "#00AA00", 
+                                              "#C6CDB9", "#556B2F", "#38471F", 
+                                              "#FFE1AA", "#FFA500", "#AA6E00", 
+                                              "#DFB4FA", "#BF6AF5", "#A020F0", "#6A15A0", 
+                                              "#AAE9FF", "#55D4FF", "#00BFFF", "#007FAA", "#003F55",
+                                              "#FFFFAA", "#FFFF55", "#FFFF00", "#AAAA00", "#555500",
+                                              "#FFC1AA", "#FF8355", "#FF4500", "#AA2E00", "#551700",
+                                              "#FFCDE6", "#FF9BCD", "#FF69B4", "#AA4678", "#55233C",
+                                              "#E4EBF4", "#CAD7E9", "#B0C4DE", "#758294", "#3A414A",
+                                              "#BFF4EF", "#7FEADF", "#40E0D0", "#2A958A", "#154A45",
+                                              "#F9E6E6", "#F3CDCD", "#EEB4B4", "#9E7878", "#4F3C3C",
+                                              "#F2E1B4", "#E6C36A", "#DAA520", "#916E15", "#48370A",
+                                              "#F9D5F9", "#F3ABF3", "#EE82EE", "#9E569E", "#4F2B4F"), na.value = "#4F4F4F") +
+        theme(legend.position = "right",
+              legend.title=element_text(size=16), 
+              legend.text=element_text(size=14),
+              strip.text.x = element_text(size=16),
+              axis.text.x = element_text(size=16, angle = 30, hjust = 1),
+              axis.text.y = element_text(size=16),
+              text = element_text(size=18)) 
+
+
+```
+p_4
+
+
+
+# Plot no.5 (Figure 5 in the manuscript) - Amino acid substitutions among lineages
+
+
+```{r Amino acid substitutions among lineages}
+
+# First load the data
+load("gisaid202S_DF5.Rdata")
+
+# We remove 1 genome which the lineage is unknown
+gisaid202S_DF5 <- subset(gisaid202S_DF5, Lineage != "None")
+
+# Only retrieve the lineage and aa_substitution columns
+gisaid202S_DF5_5 <- gisaid202S_DF5[,c(15, 17)]
+
+# Remove "(" and ")" in the column AA_Substitutions
+gisaid202S_DF5_5b <- gisaid202S_DF5_5 %>% mutate(AA_Substitutions = str_replace_all(AA_Substitutions, "\\(|\\)", ""))
+
+# Separate each type of amino acid substitution for each specific genome
+library(tidyr)
+library(dplyr)
+gisaid202S_DF5_5c <- gisaid202S_DF5_5b %>% 
+    mutate(AA_Substitutions = strsplit(as.character(AA_Substitutions), ",")) %>% 
+    unnest(AA_Substitutions)
+
+# Agglomerate the same set of the data
+gisaid202S_DF5_5d <- gisaid202S_DF5_5c %>% group_by(AA_Substitutions, Lineage) %>% tally()
+
+# Create matrix between lineage and AA_Substitutions
+library(reshape2)
+gisaid202S_DF5_5e <- recast(gisaid202S_DF5_5d, AA_Substitutions ~ Lineage, id.var = c("Lineage", "AA_Substitutions"))
+
+# Convert first column as rownames
+gisaid202S_DF5_5f <- data.frame(gisaid202S_DF5_5e[,-1], row.names = gisaid202S_DF5_5e[,1])
+
+# Convert NA value to 0
+gisaid202S_DF5_5f[is.na(gisaid202S_DF5_5f)] <- 0
+
+# Reorder the data based on row sums
+gisaid202S_DF5_5g <- gisaid202S_DF5_5f[order(rowSums(gisaid202S_DF5_5f),decreasing=T),]
+
+# Retrieve only the first 50 rows
+gisaid202S_DF5_5h <- head(gisaid202S_DF5_5g,50) ## default is 6
+
+# Put rownames as column
+gisaid202S_DF5_5h$AA_Substitutions <- rownames(gisaid202S_DF5_5h)
+
+# Reorder the data based on amino acid position --> order from the most to the least abundant
+gisaid202S_DF5_5i <- gisaid202S_DF5_5h %>% mutate(total=rowSums)
+gisaid202S_DF5_5i$AA_Substitutions <- reorder(gisaid202S_DF5_5i$AA_Substitutions, gisaid202S_DF5_5i$total)
+gisaid202S_DF5_5i$AA_Substitutions <- factor(gisaid202S_DF5_5i$AA_Substitutions, levels=rev(levels(gisaid202S_DF5_5i$AA_Substitutions)))
+levels(gisaid202S_DF5_5i$AA_Substitutions)
+
+# Prepare for the plot
+plotDat <- gather(gisaid202S_DF5_5i, key = "aa_substitutions", value = "value", -AA_Substitutions)
+
+# Remove the total column
+plotDat2 <- subset(plotDat, aa_substitutions != "total")
+
+# Check if it is working
+unique(plotDat2$aa_substitutions)
+
+
+```
+
+```{r Visualization}
+
+library(ggplot2)
+
+p_5 <- ggplot(plotDat2, aes(AA_Substitutions, aa_substitutions, col = value, fill = value, label = value)) +
+  geom_tile() +
+  labs(y="Lineage", x = "Amino acid substitutions", fill = "Number of genomes") +
+  geom_text(col = "black") +
+  scale_fill_gradient2(low = "white", mid = "white", high = "red") +
+  scale_color_gradient2(low = "white", mid = "white", high = "red") +
+          theme(legend.position = "right",
+              legend.title=element_text(size=12), 
+              legend.text=element_text(size=12),
+              strip.text.x = element_blank(),
+              axis.text.x = element_text(size=12, angle = 90, hjust=1),
+              axis.text.y = element_text(size=12),
+              text = element_text(size=14)) 
+
+
+```
+p_5
+
+
+
+# Plot no.6 (Figure 4 in the manuscript) - Phylogenomic tree for all strains
+
+```{r Importing the tree}
+
+library(phyloseq)
+library(ape)
+
+# Import tree
+tree <- read_tree("aligned.fasta.treefile") #here we use a rooted phylogenetic tree
+
+# Is the tree rooted or not?
+is.rooted(phy_tree(tree))
+
+# To see the summary of the phylogenetic tree
+summary(tree) 
+
+# To see the number of the tips which should correspondent to the number of taxa of the phyloseq object
+length(tree$tip.label) # 203 --> 202 genomes + 1 reference strain
+
+# Tree structure
+str(tree)
+tree$edge
+tree$node.label
+tree$tip.label
+
+```
+
+p_6
+
+```{r Tree visualization}
+
+library(ggplot2)
+library(ggtree)
+
+# Load the data
+load("gisaid202S_DF4.Rdata")
+
+# Prepare the tree metadata
+tree_metadata <- gisaid202S_DF4
+
+# Add a new column "strain" in order to connect the metadata to the tree
+tree_metadata$strain <- paste(tree_metadata$Virus_name, tree_metadata$Accession_ID, tree_metadata$Collection_date2, sep = "_")
+
+# Reorder the column
+tree_metadata2 <- tree_metadata[,c(22,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21)]
+
+# Check the lineage
+unique(tree_metadata2$Lineage)
+
+# Rename "None" with "Unknown"
+tree_metadata2$Lineage[tree_metadata2$Lineage == "None"] <- "Unknown"
+
+# Check if it is working
+unique(tree_metadata2$Lineage)
+
+# Reorder the lineage column
+tree_metadata2$Lineage <- factor(tree_metadata2$Lineage, c("AY.23", "AY.24", "AY.39", "AY.42", "AY.43", "AY.79",
+                                               "B", "B.1", "B.1.1", "B.1.1.10", "B.1.1.398", "B.1.1.53", 
+                                               "B.1.36.19", "B.1.459", "B.1.466.2", "B.1.468", "B.1.470", "B.56", "Unknown"))
+
+# Make sure all decimals could be seen
+options(scipen=1000000)
+
+# Visualize the tree
+p <- ggtree(tree) + geom_treescale(x=0, y=-50)
+
+# Add the metadata (specifically for the Lineage)
+p_6 <- p %<+% tree_metadata2 + ggtree:::geom_tippoint(aes(color = Lineage), size=2) +         
+            geom_tiplab(size=2, align=FALSE, linesize=0.4, lineheight =0.6)  + 
+            scale_color_manual(values = c("#EEA9B8", "#FF7256", "#FF0000", "#B22222", "#EE7621", 
+                                          "#CD1076", "#FFFF00", "#B3EE3A", "#CD9B1D", "#9ACD32", 
+                                          "#54FF9F", "#00EE00", "#00EEEE", "#00CDCD",  "#4876FF", 
+                                          "#0000CD", "#27408B", "#BF3EFF", "#CD00CD", "#FFC125")) +
+            theme(legend.position = "bottom",
+                  legend.title=element_text(size=9),
+                  legend.text=element_text(size=9),
+                  strip.text.x = element_blank(),
+                  axis.text.x = element_blank(),
+                  axis.text.y = element_blank(),
+                  text = element_text(size=9))        
+
+                 
+```
+p_6
