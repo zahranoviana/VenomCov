@@ -1,3 +1,13 @@
+---
+title: "SARS-CoV-2 plots for the manuscript "
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+
 # Metadata analysis of Sars-cov2 data (belonged to BRIN) within the area of Jakarta, Tangerang, and Bogor (202 genomes)
 
 
@@ -26,6 +36,7 @@ gisaid202S_DF2 <- gisaid202S_DF
 save(gisaid202S_DF2, file = "gisaid202S_DF2.Rdata")
 
 ```
+
 
 ```{r Change the column type of the collection date}
 
@@ -88,6 +99,8 @@ unique(gisaid202S_DF3$Collection_date2)
 
 ```
 
+
+
 ```{r Change location column}
 
 # Location
@@ -109,7 +122,10 @@ unique(gisaid202S_DF3$Location2)
 
 ```
 
+
+
 ```{r Categorize the patient age}
+
 
 # Patient age
 unique(gisaid202S_DF3$Patient_age)
@@ -147,6 +163,7 @@ save(gisaid202S_DF4, file = "gisaid202S_DF4.Rdata")
 ```
 
 
+
 ```{r Checkpoint and save}
 
 # For majority of the plot, we need no reference genome and hence the removal from metadata
@@ -160,6 +177,7 @@ save(gisaid202S_DF5, file = "gisaid202S_DF5.Rdata")
 
 
 ```
+
 
 
 # Plot no.1 (2A in the manuscript) - Geographic distribution vs gender
@@ -260,6 +278,7 @@ gisaid202S_DF5_2c$Gender <- factor(gisaid202S_DF5_2c$Gender, c("Male", "Female")
 ```
 
 
+
 ```{r Visualization}
 
 # Construct the plot
@@ -280,7 +299,6 @@ p_2 <- ggplot(gisaid202S_DF5_2c, aes(x=Gender, y=value, fill = Age_group)) +
 
 ```
 p_2
-
 
 
 
@@ -327,13 +345,23 @@ gisaid202S_DF5_3c$Lineage <- factor(gisaid202S_DF5_3c$Lineage, levels=rev(levels
 # Check if it is working
 levels(gisaid202S_DF5_3c$Lineage)
 
+# Change data type of lineage column to character
+gisaid202S_DF5_3c$Lineage2 <- as.character(gisaid202S_DF5_3c$Lineage)
+
+# Rename "None" with "Unknown"
+gisaid202S_DF5_3c$Lineage2[gisaid202S_DF5_3c$Lineage2 == "None"] <- "Unknown"
+
 # Reorder the factor for gender
 gisaid202S_DF5_3c$Gender <- factor(gisaid202S_DF5_3c$Gender, c("Male", "Female"))
 
-
-
+# Reorder the column Lineage2 based on the number of lineage
+gisaid202S_DF5_3c$Lineage2 <- factor(gisaid202S_DF5_3c$Lineage2, 
+                                     c("B.1.466.2", "AY.23", "B.1.1.398", "B.1.470", "B.1", "B.1.459", "AY.24",
+                                       "B.1.468", "B.56", "B.1.36.19", "B.1.1.53", "B.1.1.10", "B.1.1", "AY.79",
+                                       "AY.43", "AY.42", "AY.39", "Unknown"))
 
 ```
+
 
 
 ```{r Visualization}
@@ -341,7 +369,7 @@ gisaid202S_DF5_3c$Gender <- factor(gisaid202S_DF5_3c$Gender, c("Male", "Female")
 # Construct the plot
 library("ggplot2")
 
-p_3 <- ggplot(gisaid202S_DF5_3c, aes(x=reorder(Gender,-value,sum), y=value, fill = Lineage)) + 
+p_3 <- ggplot(gisaid202S_DF5_3c, aes(x=reorder(Gender,-value,sum), y=value, fill = Lineage2)) + 
         geom_bar(stat='identity', position="fill") +
         labs(y="Percentage of cases", x = "", fill = "Lineages") +
         theme(legend.position = "right",
@@ -450,6 +478,8 @@ colnames(gisaid202S_DF5_4e)[3] <- "Number_of_cases"
 
 ```
 
+
+
 ```{r Visualization}
 
 # We remove 1 genome which the lineage is unknown
@@ -536,7 +566,8 @@ gisaid202S_DF5_5h <- head(gisaid202S_DF5_5g,50) ## default is 6
 gisaid202S_DF5_5h$AA_Substitutions <- rownames(gisaid202S_DF5_5h)
 
 # Reorder the data based on amino acid position --> order from the most to the least abundant
-gisaid202S_DF5_5i <- gisaid202S_DF5_5h %>% mutate(total=rowSums)
+library(dplyr)
+gisaid202S_DF5_5i <- gisaid202S_DF5_5h %>% mutate(total=rowSums(select_if(., is.numeric)))
 gisaid202S_DF5_5i$AA_Substitutions <- reorder(gisaid202S_DF5_5i$AA_Substitutions, gisaid202S_DF5_5i$total)
 gisaid202S_DF5_5i$AA_Substitutions <- factor(gisaid202S_DF5_5i$AA_Substitutions, levels=rev(levels(gisaid202S_DF5_5i$AA_Substitutions)))
 levels(gisaid202S_DF5_5i$AA_Substitutions)
@@ -553,16 +584,16 @@ unique(plotDat2$aa_substitutions)
 
 ```
 
+
 ```{r Visualization}
 
 library(ggplot2)
 
-p_5 <- ggplot(plotDat2, aes(AA_Substitutions, aa_substitutions, col = value, fill = value, label = value)) +
+p_5 <- ggplot(plotDat2, aes(AA_Substitutions, aa_substitutions, fill = value, label = value)) +
   geom_tile() +
   labs(y="Lineage", x = "Amino acid substitutions", fill = "Number of genomes") +
   geom_text(col = "black") +
   scale_fill_gradient2(low = "white", mid = "white", high = "red") +
-  scale_color_gradient2(low = "white", mid = "white", high = "red") +
           theme(legend.position = "right",
               legend.title=element_text(size=12), 
               legend.text=element_text(size=12),
@@ -604,7 +635,7 @@ tree$tip.label
 
 ```
 
-p_6
+
 
 ```{r Tree visualization}
 
@@ -651,13 +682,20 @@ p_6 <- p %<+% tree_metadata2 + ggtree:::geom_tippoint(aes(color = Lineage), size
                                           "#54FF9F", "#00EE00", "#00EEEE", "#00CDCD",  "#4876FF", 
                                           "#0000CD", "#27408B", "#BF3EFF", "#CD00CD", "#FFC125")) +
             theme(legend.position = "bottom",
-                  legend.title=element_text(size=9),
-                  legend.text=element_text(size=9),
+                  legend.title=element_text(size=11),
+                  legend.text=element_text(size=11),
                   strip.text.x = element_blank(),
                   axis.text.x = element_blank(),
                   axis.text.y = element_blank(),
-                  text = element_text(size=9))        
+                  text = element_text(size=3))        
 
                  
 ```
 p_6
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
