@@ -14,7 +14,7 @@ Try executing this chunk by clicking the *Run* button within the chunk or by pla
 ```{r Load the data}
 
 # Load the metadata
-gisaid202S_DF <- read.csv(file = 'Gisaid_LIPI2022_202_Jabota_metadata.csv', header = TRUE, fill = TRUE)
+gisaid202S_DF <- read.csv(file = 'Gisaid_LIPI2022_202S_plus_reference_strain.csv', header = TRUE, fill = TRUE)
 
 # Check the data dimension
 dim(gisaid202S_DF) 
