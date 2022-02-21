@@ -216,10 +216,25 @@ p_1 <- ggplot(gisaid202S_DF5, aes(x=reorder(Location2,-value,sum), y=value, fill
               axis.text.x = element_text(size=17, hjust=1),
               axis.text.y = element_text(size=17),
               text = element_text(size=17)) 
-  
+              
+# To adjust the color to be colorblind-friendly
+p_1b <- ggplot(gisaid202S_DF5, aes(x=reorder(Location2,-value,sum), y=value, fill = Gender, 
+                                !is.na(Gender))) + 
+        geom_bar(stat='identity') +
+        labs(y="Number of cases", x = "City") +
+        scale_fill_manual(values = c("#f1a340", "#998ec3")) +
+        theme(legend.position = "bottom",
+              legend.title=element_text(size=17), 
+              legend.text=element_text(size=17),
+              strip.text.x = element_blank(),
+              axis.text.x = element_text(size=17, hjust=1),
+              axis.text.y = element_text(size=17),
+              text = element_text(size=17)) 
+   
   
 ```
 p_1
+p_1b
 
 
 
@@ -297,8 +312,24 @@ p_2 <- ggplot(gisaid202S_DF5_2c, aes(x=Gender, y=value, fill = Age_group)) +
         scale_fill_manual(values = c("#FF0000","#00CD00", "#FF8C00", "#0000FF", "#EE00EE", "#A6A6A6",
                                      "#008B8B", "#999999"))
 
+# To adjust the color to be colorblind-friendly
+p_2b <- ggplot(gisaid202S_DF5_2c, aes(x=Gender, y=value, fill = Age_group)) + 
+        geom_bar(stat='identity', position = 'fill') +
+        labs(y = "Percentage of cases", x = "", fill = "Age group") +
+        theme(legend.position = "right",
+              legend.title=element_text(size=16), 
+              legend.text=element_text(size=14),
+              strip.text.x = element_blank(),
+              axis.title.y = element_text(size=16),
+              axis.text.x = element_text(size=16),
+              axis.text.y = element_text(size=16),
+              panel.background = element_rect(fill='#D9D9D9')) +
+        guides(fill=guide_legend(nrow = 7)) +
+        scale_fill_manual(values = c("#4d9221","#a1d76a", "#e6f5d0", "#c51b7d", "#e9a3c9", "#fde0ef"))
+
 ```
 p_2
+p_2b
 
 
 
@@ -396,8 +427,50 @@ p_3 <- ggplot(gisaid202S_DF5_3c, aes(x=reorder(Gender,-value,sum), y=value, fill
                                               "#F2E1B4", "#E6C36A", "#DAA520", "#916E15", "#48370A",
                                               "#F9D5F9", "#F3ABF3", "#EE82EE", "#9E569E", "#4F2B4F"), na.value = "#4F4F4F") 
 
+# To adjust the color to be colorblind-friendly
+# Create column Lineage3
+gisaid202S_DF5_3c$Lineage3 <- as.character(gisaid202S_DF5_3c$Lineage2)
+
+# Rename several lineage with "Others" --> limited range of colors available that are colorblind-friendly
+gisaid202S_DF5_3c$Lineage3[gisaid202S_DF5_3c$Lineage3 == "Unknown"] <- "Others"
+gisaid202S_DF5_3c$Lineage3[gisaid202S_DF5_3c$Lineage3 == "B.1.36.19"] <- "Others"
+gisaid202S_DF5_3c$Lineage3[gisaid202S_DF5_3c$Lineage3 == "B.1.1.53"] <- "Others"
+gisaid202S_DF5_3c$Lineage3[gisaid202S_DF5_3c$Lineage3 == "B.1.1.10"] <- "Others"
+gisaid202S_DF5_3c$Lineage3[gisaid202S_DF5_3c$Lineage3 == "B.1.1"] <- "Others"
+gisaid202S_DF5_3c$Lineage3[gisaid202S_DF5_3c$Lineage3 == "AY.79"] <- "Others"
+gisaid202S_DF5_3c$Lineage3[gisaid202S_DF5_3c$Lineage3 == "AY.43"] <- "Others"
+gisaid202S_DF5_3c$Lineage3[gisaid202S_DF5_3c$Lineage3 == "AY.42"] <- "Others"
+gisaid202S_DF5_3c$Lineage3[gisaid202S_DF5_3c$Lineage3 == "AY.39"] <- "Others"
+gisaid202S_DF5_3c$Lineage3[is.na(gisaid202S_DF5_3c$Lineage3)] <- "Others"
+
+# Check the unique values in the lineage column
+unique(gisaid202S_DF5_3c$Lineage3)
+
+# Reorder the column Lineage3 based on the number of lineage
+gisaid202S_DF5_3c$Lineage3 <- factor(gisaid202S_DF5_3c$Lineage3, 
+                                     c("B.1.466.2", "AY.23", "B.1.1.398", "B.1.470", "B.1", 
+                                       "B.1.459", "AY.24", "B.1.468", "B.56", "Others"))
+
+
+# Construct the same plot with different color
+p_3b <- ggplot(gisaid202S_DF5_3c, aes(x=reorder(Gender,-value,sum), y=value, fill = Lineage3)) + 
+        geom_bar(stat='identity', position="fill") +
+        labs(y="Percentage of cases", x = "", fill = "Lineages") +
+        theme(legend.position = "right",
+              legend.title=element_text(size=12), 
+              legend.text=element_text(size=14),
+              strip.text.x = element_blank(),
+              axis.text.x = element_text(size=12),
+              axis.text.y = element_text(size=12),
+              text = element_text(size=14),
+              panel.background = element_rect(fill='#D9D9D9')) +
+        guides(fill=guide_legend(nrow = 11)) +
+        scale_fill_manual(values = c("#00441b", "#1b7837", "#5aae61", "#a6dba0", "#d9f0d3",
+                                     "#40004b", "#762a83", "#9970ab", "#c2a5cf", "#e7d4e8", "#f7f7f7"))
+
 ```
 p_3
+p_3b
 
 
 
